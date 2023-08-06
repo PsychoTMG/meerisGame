@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MeerisGame</title>
+</head>
+
+<body>
+    <div id="canvas" oncontextmenu="return false" style="background-color: white;">
+        
+<div id="backgroundCanvas"></div>
+
+<div id="final-timer-canvas">
+    <p id="final-timer-text" style="
+        position: absolute;
+        font-size: 100pt;
+        text-align: center;
+        width: 100%;
+        "></p>
+</div>
+
+<img src="assets/refresh.png" id="restartBtn" style="
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            top: 20px;
+            right: 80px;
+            ">
+
+        <img src="fullscreen.png" id="fsBtn" style="
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            ">
+
+
+ <!--БЛОК С ИЗОБРАЖЕНИЕМ МЕЕРИСА-->
+    <div id="img" style="
+    width: 96px;
+    height: 80px;
+    overflow: hidden;
+    position: absolute;
+    left: 0px;
+    bottom: 64px;
+    ">
+ <!--САМО ИЗОБРАЖЕНИЕ МЕЕРИСА-->
+    <img id="heroImg" style="
+    width: 576px;
+    height: 384px;
+    position: absolute;
+    left: -96px;
+    transform: scale(-1,1);
+    " src="meeris.png">
+    </div>
+
+    <div id="jumpBlock" style="
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 144px;
+    height: 144px;
+    overflow: hidden;
+    ">
+    <img src="meeris.png" style="
+    position: absolute;
+    top: -144px;
+    left: -144px;
+    width: 864px;
+    height: 576px;
+    transform: scale(-1,1);
+    opacity: 0.5;
+    ">    
+
+    <div style="
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 130px;
+    height: 130px;
+    border: 4px solid rgb(96, 4, 4);
+    border-radius: 50%;
+    opacity: 0.5;
+    "></div>
+</div>
+
+
+<div id="hitBlock" style="
+position: absolute;
+top: 0;
+right: 0;
+width: 144px;
+height: 144px;
+overflow: hidden;
+">
+<img src="meeris.png" style="
+position: absolute;
+top: -452px;
+left: -462px;
+width: 864px;
+height: 576px;
+transform: scale(-1,1);
+opacity: 0.5;
+">    
+
+<div style="
+position: absolute;
+top: 0px;
+left: 0px;
+width: 130px;
+height: 130px;
+border: 4px solid rgb(96, 4, 4);
+border-radius: 50%;
+opacity: 0.5;
+"></div>
+</div>
+
+<p id="info" style="
+display: none;
+position: absolute;
+left: 64px;
+top: 96px;
+background-color: black;
+color: aliceblue;
+font-size: 20px;
+padding: 20px;
+"></p>
+
+</div>
+
+</body>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+</style>
+
+<script>
+
+//ПЕРЕМЕННЫЕ ДЛЯ МАНИПУЛЯЦИЙ
+    let heroImg=window.document.querySelector('#heroImg')//манипуляция основным героем
+    let imgBlock=window.document.querySelector('#img')//манипуляция с блоком 
+    let canvas=window.document.querySelector('#canvas')//манипулирование канвасом 
+    let fsBtn=window.document.querySelector('#fsBtn')//манипулирование кнопкой фуллскрина
+    let jumpBlock=window.document.querySelector('#jumpBlock')//прыжок
+    let hitBlock=window.document.querySelector('#hitBlock')//удар
+    let info=window.document.querySelector('#info')
+    let backgroundCanvas=window.document.querySelector('#backgroundCanvas')
+    let finalTimerText=window.document.querySelector('#final-timer-text')
+    let restartBtn=window.document.querySelector('#restartBtn')
+
+
+    let heroX=(Number.parseInt(imgBlock.style.left)+32)/32//позиция по горизонтали и вертикали
+    let heroY=Number.parseInt(imgBlock.style.bottom)/32//
+
+//ПЕРЕМЕННЫЕ
+    jumpBlock.style.top=`${window.screen.height/2 - 144/2}px` //отрабатывает кнопку по середине 
+    hitBlock.style.top=`${window.screen.height/2 - 144/2}px` //отрабатывает кнопку по середине 
+
+    let halfWidth=window.screen.width/2 //половина экрана
+    let rightPosition=0//стартовое значение 
+    let blockPosition=0//стартовое значение 
+    let time=null//нулевое значение таймера
+    let direction='right' //строка которая принимает либо лево, либо право
+    let x=0//
+    let jump=false
+    let hit=false
+    let fall=false//переменая отвечающая за падние
+    let tileArray=[]//массив для добавления
+    let objectsArray=[]
+    let enemisArray=[]
+    let maxLives=15//максимальное кол жизней
+    let lives=15//текущее
+    let heartsArray=[]
+    let isRightSideBlocked=false
+    let isLeftSideBlocked=false
+    let wasHeroHit=false
+    let f1WallArray=[[-10,0],[14,32],[41,53],[64,75],[92,105],[480,500]]//массив стен
+    let f2WallArray=[[55,63]]//массив стен
+    let isWallRight=false//переменная отвечающая за то с какой стороны находится стена
+    let isWallLeft=false//переменная отвечающая за то с какой стороны находится стена
+    let heroStep=3
+
+
+
+
+
+//ФУНКЦИИ
+//
+const moveWorldLeft=()=>{
+objectsArray.map((elem,index)=>{
+    elem.style.left=Number.parseInt(elem.style.left)-32+'px'
+})
+tileArray.map((elem)=>{
+    elem[0]=elem[0]-1
+})
+enemisArray.map(elem=>elem.moveLeft())
+f1WallArray.map(elem=>{
+    elem[0]-=1
+    elem[1]-=1
+})
+f2WallArray.map(elem=>{
+    elem[0]-=1
+    elem[1]-=1
+})
+}
+
+//
+const moveWorldRight=()=>{
+    objectsArray.map((elem,index)=>{
+    elem.style.left=Number.parseInt(elem.style.left)+32+'px'
+})
+tileArray.map((elem)=>{
+    elem[0]=elem[0]+1
+})
+enemisArray.map(elem=>elem.moveRight())
+f1WallArray.map(elem=>{
+    elem[0]+=1
+    elem[1]+=1
+})
+f2WallArray.map(elem=>{
+    elem[0]+=1
+    elem[1]+=1
+})
+}
+//функция для отображения информации
+const updateHeroXY=()=>{
+    heroX=Math.ceil((Number.parseInt(imgBlock.style.left)+32)/32)
+    heroY=Math.ceil(Number.parseInt(imgBlock.style.bottom)/32)
+    info.innerText=`heroX=${heroX}, heroY=${heroY}`
+}
+
+//проверка находится ли над блоком
+const checkFalling=()=>{
+    updateHeroXY()
+    let isFalling=true//падаем по умолчанию
+    for(let i=0;i<tileArray.length;i++){
+        if((tileArray[i][0]===heroX)&&((tileArray[i][1]+1)===heroY)){
+            isFalling=false
+        }
+    }
+    if(isFalling){
+        info.innerText=info.innerText+ ', Falling'
+        fall=true
+    }else{
+        info.innerText=info.innerText + ', not Falling'
+        fall=false
+    }
+}
+
+//функция падения
+const fallHandler=()=>{
+    heroImg.style.top='-96px'
+    imgBlock.style.bottom=`${Number.parseInt(imgBlock.style.bottom)-32}px`
+    checkFalling()
+}
+
+checkRightWallCollide=()=>{
+    isWallLeft=false
+    isWallRight=false
+    if(heroY===1){
+        f1WallArray.map(elem=>{
+            if(heroX===elem[0]-2){
+                isWallRight=true
+            }
+        })
+    }else if(heroY===5){
+        f2WallArray.map(elem=>{
+            if(heroX===elem[0]-3){
+                isWallRight=true
+            }
+        })
+    }
+}
+checkLeftWallCollide=()=>{
+    isWallLeft=false
+    isWallRight=false
+    if(heroY===1){
+        f1WallArray.map(elem=>{
+            if(heroX===elem[1]){
+                isWallLeft=true
+            }
+        })
+    }else if(heroY===5){
+        f2WallArray.map(elem=>{
+            if(heroX===elem[1]){
+                isWallLeft=true
+            }
+        })
+    }
+    
+}
+
+    /*функция для  перемещения вправо */
+    const rightHandler=()=>{
+        if(!fall){
+        if(!isRightSideBlocked&&!isWallRight){
+        rightPosition=rightPosition+1 //увеличение кадра 
+        blockPosition=blockPosition+1 
+        if (rightPosition>5){
+            rightPosition=0
+        }
+        heroImg.style.transform='scale(-1,1)'
+        heroImg.style.left=`-${rightPosition*103}px` //перемещение внутри блока 
+        heroImg.style.top='-206px'//при вызове функции анимация переходит в режим бега
+        imgBlock.style.left=`${blockPosition*heroStep}px`//перемещение самого блока 
+
+        checkFalling()
+        wasHeroHit=false
+        moveWorldLeft()
+        checkRightWallCollide()// функция для проверки со стеной с правой стороны 
+    }}else{
+        fallHandler()
+    }
+
+}
+
+    /*функция для  перемещения вправо */
+    const leftHandler=()=>{
+        if(!fall){
+        if(!isLeftSideBlocked&&!isWallLeft){
+        rightPosition=rightPosition+1 //увеличение кадра 
+        blockPosition=blockPosition-1 
+        if (rightPosition>5){
+            rightPosition=0
+        }
+        heroImg.style.transform='scale(1,1)' //при вызове в другую сторону
+        heroImg.style.left=`-${rightPosition*100}px` //перемещение внутри блока 
+        heroImg.style.top='-206px'//при вызове функции анимация переходит в режим бега
+        imgBlock.style.left=`${blockPosition*heroStep}px`//перемещение самого блока 
+        checkFalling()
+        wasHeroHit=false
+        moveWorldRight()
+        checkLeftWallCollide()
+
+    }}
+    else{
+        fallHandler()
+    }
+}
+
+    //функция если персонаж не передвигается
+const standHandler=()=>{
+        switch(direction){
+            case 'right':{
+                heroImg.style.transform='scale(-1,1)'
+            if (rightPosition>4){
+            rightPosition=1//начинаем с первого элемента 
+        }
+                break
+            }
+            case 'left':{
+                heroImg.style.transform='scale(1,1)'
+            if (rightPosition>3){
+            rightPosition=0//начинаем с первого элемента 
+        }
+                break
+            }
+            default: break
+        }
+
+        rightPosition=rightPosition+1 //увеличение кадра 
+        heroImg.style.left=`-${rightPosition*103}px` //перемещение внутри блока 
+        heroImg.style.top='0px'//при вызове функции анимация переходит в режим бега
+        checkFalling()
+}
+
+const hitHandler=()=>{
+    switch(direction){
+            case 'right':{
+                heroImg.style.transform='scale(-1,1)'
+            if (rightPosition>4){
+            rightPosition=1//начинаем с первого элемента 
+            hit=false
+            wasHeroHit=true
+        }
+                break
+            }
+            case 'left':{
+                heroImg.style.transform='scale(1,1)'
+            if (rightPosition>3){
+            rightPosition=0//начинаем с первого элемента 
+            hit=false
+            wasHeroHit=true
+        }
+                break
+            }
+            default: break
+        }
+
+        rightPosition=rightPosition+1 //увеличение кадра 
+        heroImg.style.left=`-${rightPosition*103}px` //перемещение внутри блока 
+        heroImg.style.top='-310px'//при вызове функции анимация переходит в режим бега
+}
+
+
+const jumpHandler=()=>{
+    isWallRight=false//обнуляем сраазу
+    isWallLeft=false//обнуляем сразу
+    switch(direction){
+            case 'right':{
+                heroImg.style.transform='scale(-1,1)'
+            if (rightPosition>4){
+            rightPosition=1//начинаем с первого элемента 
+            jump=false
+            blockPosition=blockPosition+20
+            imgBlock.style.left=`${blockPosition*heroStep}px` 
+            imgBlock.style.bottom=`${Number.parseInt(imgBlock.style.bottom)+160}px`//перемещение вверх
+        }
+                break
+            }
+            case 'left':{
+                heroImg.style.transform='scale(1,1)'
+            if (rightPosition>3){
+            rightPosition=0//начинаем с первого элемента 
+            jump=false
+            imgBlock.style.bottom=`${Number.parseInt(imgBlock.style.bottom)+160}px`//перемещение вверх
+            blockPosition=blockPosition-20
+            imgBlock.style.left=`${blockPosition*heroStep}px`//перемещение самого блока 
+
+        }
+                break
+            }
+            default: break
+        }
+
+        rightPosition=rightPosition+1 //увеличение кадра 
+        heroImg.style.left=`-${rightPosition*103}px` //перемещение внутри блока 
+        heroImg.style.top='-96px'//при вызове функции анимация переходит в режим бега
+}
+
+//ОБРАБОТЧИКИ СОБЫТИЙ
+
+//полноэкранный режим 
+fsBtn.onclick=()=>{
+    if(window.document.fullscreen){
+        fsBtn.src='fullscreen.png'
+        window.document.exitFullscreen()
+    }else{
+        fsBtn.src='cancel.png' //кнопка отмены
+        canvas.requestFullscreen()
+
+    }
+}
+
+restartBtn.addEventListener('click',()=>{
+    window.document.location.reload()
+})
+
+//функция срабатывает при нажатие на экран 
+let onTouchStart=(event)=>{
+    clearInterval(time)//очищаем тач
+    x=(event.type==='mousedown')?x=event.screenX:x=event.touches[0].screenX
+    time=setInterval(()=>{//таймер запускается 
+        if (x>halfWidth){
+            rightHandler()
+            direction='right'
+        }else{
+            leftHandler()
+            direction='left'
+}},130)
+}
+
+
+//функция срабатывает, если отпустить экран 
+let onTouchEnd=(event)=>{
+    clearInterval(time)//очищаем 
+    lifeCycle()
+}
+
+window.onmousedown=onTouchStart//При клике мыши - происходит
+window.ontouchstart=onTouchStart//При клике на экран 
+
+window.onmouseup=onTouchEnd//срабатывает если отпустить мышку
+window.ontouchend=onTouchEnd//срабатывает если отпустить палец
+
+window.addEventListener('keydown',(event)=>{
+    if(!event.repeat){
+    clearInterval(time)//очищаем тач
+    time=setInterval(()=>{//таймер запускается 
+        if (event.code==='KeyD'){
+            direction='right'
+            rightHandler()
+        }else if(event.code==='KeyA'){
+            leftHandler()
+            direction='left'
+}},130)
+    }
+})
+
+window.addEventListener('keyup',(event)=>{
+    if(event.code==='KeyW') jump=true
+    if(event.code==='KeyE') hit=true
+
+    clearInterval(time)//очищаем 
+    lifeCycle()
+})
+
+heroImg.onclick=(event)=>{
+    event.preventDefault()//отменяем поведение по умолчанию
+}
+
+//обработчик переводит состояние переменной 
+jumpBlock.onclick=()=>{
+    jump=true
+}
+//обработчик переводит состояние переменной 
+
+hitBlock.onclick=()=>{
+    hit=true
+}
+
+
+const lifeCycle=()=>{
+    time=setInterval(()=>{
+        if(hit){//если тру, то вызывает
+            hitHandler()
+        }else if(jump){
+            jumpHandler()
+        }else if (fall){
+            fallHandler()
+        }else{
+        standHandler()
+}},150)
+}
+
+const createTiles=(x,y=1)=>{
+    let tile=window.document.createElement('img')//обращение к функции для создания тега 
+     tile.src='assets/1 Tiles/Tile_02.png'//обращение к пути файла 
+     tile.style.position='absolute'
+     tile.style.left=x*32+'px'
+     tile.style.bottom=y*32+'px'
+     backgroundCanvas.appendChild(tile)
+     objectsArray.push(tile)
+     tileArray.push([x,y])
+}
+
+const createTileBlack=(x,y=0)=>{
+     let tileBlack=window.document.createElement('img')
+     tileBlack.src='assets/1 Tiles/Tile_04.png'//обращение к пути файла 
+     tileBlack.style.position='absolute'
+     tileBlack.style.left=x*32+'px'
+     tileBlack.style.bottom=y*32+'px'
+     objectsArray.push(tileBlack)
+     backgroundCanvas.appendChild(tileBlack)//исправляет баг с поверхностью кнопки
+}
+
+//создание платформ
+const createTilesPlatform=(startX,endX,floor)=>{
+    for(let x_pos=startX-1;x_pos<endX;x_pos++){
+        createTiles(x_pos,floor)
+    }
+}
+
+const createTilesBlackBlock=(startX,endX,floor)=>{
+    for(let y_pos=0;y_pos<floor;y_pos++){
+    for(let x_pos=startX-1;x_pos<endX;x_pos++){
+        createTileBlack(x_pos,y_pos)
+    }
+}
+}
+//динамическое создание
+const addTiles=(i)=>{  //принимаем
+    createTiles(i)//вызываем и передаем i 
+     let tileBlack=window.document.createElement('img')
+     tileBlack.src='assets/1 Tiles/Tile_04.png'//обращение к пути файла 
+     tileBlack.style.position='absolute'
+     tileBlack.style.left=i*32+'px'
+     tileBlack.style.bottom=0
+     backgroundCanvas.appendChild(tileBlack)//исправляет баг с поверхностью кнопки
+}
+
+class Lever{
+    leverImg
+    x
+    y
+    updateTimer
+    dir
+    opacity
+    finalTimer
+    time
+    fountainImg
+    constructor(){
+       
+        this.fountainImg=objectsArray.filter(elem=>elem.outerHTML.split('"')[1]==='assets/3 Objects/Fountain/2.png')[0]
+        console.log(this.fountainImg)
+        this.x=heroX-20
+        this.y=heroY
+        this.leverImg=window.document.createElement('img')
+        this.leverImg.src='trusiki.png'
+        this.leverImg.style.position='absolute'
+        this.leverImg.style.left=this.x*32+'px'
+        this.leverImg.style.bottom=this.y*32+'px'
+        this.leverImg.style.width=64+'px'
+        this.leverImg.style.height=64+'px'
+        canvas.appendChild(this.leverImg)
+        enemisArray.push(this)
+        this.time=45
+        this.dir=true
+        this.opacity=1
+        this.updateTimer=setInterval(()=>{
+            if(heroX===this.x+1 &&heroY===this.y){
+                this.leverImg.style.display='none'
+                clearInterval(this.updateTimer)
+                new Cutscence(['[беги к телочке]'])
+            }else{
+            this.animate()
+    }
+},100)
+        this.finalTimer=setInterval(()=>{
+    if(this.time<=0){
+        finalTimerText.innerText='Гей Over'
+        clearInterval(this.finalTimer)
+    }else{
+    finalTimerText.innerText=`${this.time}`
+    this.time--
+    if(heroX ===Number.parseInt(this.fountainImg.style.left)/32){
+        new Terminal()
+        clearInterval(this.finalTimer)
+        }
+    }},1000)
+    }
+
+    animate(){
+        (this.dir)?this.opacity+=0.5:this.opacity-=0.5
+        this.leverImg.style.opacity=1/this.opacity
+        if(this.opacity<=0||this.opacity>=5) this.dir=!this.dir
+    }
+
+    moveLeft(){
+        this.leverImg.style.left=Number.parseInt(this.leverImg.style.left)-32+'px'
+        this.x-=1
+    }
+    moveRight(){
+        this.leverImg.style.left=Number.parseInt(this.leverImg.style.left)+32+'px'
+        this.x+=1
+    }
+}
+
+//класс катсцен
+class Cutscence{
+    text
+    block
+    p
+    nextButton
+    skipButton
+    page//свойство для нумерации страницы
+    timer
+    constructor(text){
+        this.page=0
+        this.text=text
+        this.block=window.document.createElement('div')
+        this.block.style.position='absolute'
+        this.block.style.left='11%'
+        this.block.style.bottom='10vh'
+        this.block.style.width='76%'
+        this.block.style.height='70vh'
+        this.block.style.backgroundImage='url(ussr.webp)'
+        this.block.style.border='7px solid black'
+        this.appendP()
+        this.appendNextButton()
+        this.appendSkipButton()
+        this.setText(this.text[this.page])
+        canvas.appendChild(this.block)
+    }
+    appendP(){
+        this.p=window.document.createElement('p')
+        this.p.style.position='absolute'
+        this.p.style.left='10%'
+        this.p.style.top='4vh'
+        this.p.style.width='80%'
+        this.p.style.color='black'
+        this.p.style.fontSize='8pt'
+        this.p.style.lineHeight='1.5'
+        this.p.onclick=()=>{
+            this.nextButton.style.display='block'
+            clearInterval(this.timer)
+            this.p.innerText=this.text[this.page]
+        }
+        this.block.appendChild(this.p)
+        this.p.style.fontFamily="'Press Start 2P', cursive"
+        
+        
+    }
+    appendNextButton(){
+        this.nextButton=window.document.createElement('button')
+        this.setButtonStyle(this.nextButton,'Next')
+        this.nextButton.style.right=0
+        this.nextButton.style.display='none'
+        this.nextButton.onclick=()=>{
+            if(this.page<this.text.length-1){
+            this.page++
+            this.setText(this.text[this.page])
+            this.nextButton.style.display='none'
+        }else{
+            this.block.style.display='none'
+        }}
+        this.block.appendChild(this.nextButton)
+    }
+    appendSkipButton(){
+        this.skipButton=window.document.createElement('button')
+        this.setButtonStyle(this.skipButton,'Skip')
+        this.skipButton.style.left=0
+        this.skipButton.onclick=()=>{
+            this.block.style.display='none'
+        }
+
+        this.block.appendChild(this.skipButton)
+
+        
+    }
+    setButtonStyle(button,title){
+        button.style.position='absolute'
+        button.style.bottom=0
+        button.style.backgroundColor='red'
+        button.style.color='white'
+        button.innerText=title
+        button.style.fontSize='20pt'
+        button.style.margin='10pt'
+        button.style.padding='10pt'
+        button.style.border=0
+        button.style.fontFamily="'Press Start 2P', cursive"
+
+
+
+    }
+
+    setText(text){
+        if(this.page===this.text.length-1)this.nextButton.innerText='go'
+        let innerText=''
+        let targetText=text
+        let pos=0
+        this.timer=setInterval(()=>{
+            if(pos<=targetText.length-1){
+            innerText+=targetText[pos]
+            this.p.innerText=innerText
+            pos++
+        }else{
+            clearInterval(this.timer)
+            this.nextButton.style.display='block'
+        }},20)
+    }
+}
+
+class Terminal extends Cutscence{
+    btnBlock
+    mainStrLength
+    password
+    constructor(){
+        let text='вводи пароль'
+        super([text])
+        this.password='1234'
+        this.mainStrLength=text.length
+        this.btnBlock=window.document.createElement('div')
+        this.btnBlock.style.position='absolute'
+        this.btnBlock.style.left='33%'
+        this.btnBlock.style.bottom='10vh'
+        this.btnBlock.style.width='33%'
+        this.block.appendChild(this.btnBlock)
+        this.skipButton.innerText='Clear'
+        this.nextButton.innerText='Enter'
+        this.createNumButtons()
+        this.skipButton.onclick=()=>{
+            if(this.p.innerText.length>this.mainStrLength){
+                let str=''
+                for(let i=0;i<this.p.innerText.length-1;i++){
+                    str+=this.p.innerText[i]
+                }
+                this.p.innerText=str
+            }
+        }
+        this.nextButton.onclick=()=>{
+            if(this.p.innerText.length===this.mainStrLength+4){
+                let str=''
+                for(let i=this.p.innerText.length-4;i<this.p.innerText.length;i++){
+                    str+=this.p.innerText[i]
+                }
+                if(str===this.password){
+this.block.style.display='none'
+finalTimerText.innerText='you win'
+imgBlock.style.display='none'
+                }else{
+                    this.p.innerText='не верно'
+                    this.mainStrLength=this.p.innerText.length
+                }
+            }
+        }
+
+
+    }
+    createNumButtons(){
+        for(let i=1; i<=9;i++){
+            let btn=window.document.createElement('button')
+            this.setButtonStyle(btn, `${i}`)
+            btn.style.left=
+            (i<=3)
+            ? `${(i-1)*33}%`
+            :(i<=6)
+            ?`${(i-4)*33}%`
+            :`${(i-7)*33}%`
+            btn.style.bottom=
+            (i<=3)
+            ? '36vh'
+            :(i<=6)
+            ?'18vh'
+            :0
+
+            btn.onclick=(event)=>{
+                if(this.p.innerText.length<this.mainStrLength+4){
+                    this.p.innerText+=event.target.innerText
+            }
+        }
+            this.btnBlock.appendChild(btn)
+        }
+    }
+}
+
+//добавляем класс 
+class Enemy {
+ATTACK='attack'
+DEATH='death'
+HURT='hurt'
+IDLE='idle'
+WALK='walk'
+
+
+    state //состояние которое есть на данный момент 
+    animateWasChange
+    posX;
+    posY;
+    img;
+    block;
+    blockSize //размер блока
+    spritePos;//позиция спрайта
+    spriteMaxPos;//максимальная позиция
+    timer;
+    sourcePah //путь к исходику
+    startX
+    dir
+    stop
+    lives
+    message
+    isLast
+    constructor(x,y,src,message='',isLast=false){//конструктор с аргуиентами 
+        //Глобальные переменные
+        stop=false
+        this.isLast=isLast
+        this.message=message
+        this.dir=0.5
+        this.posX=x+this.getRandomOffSet(6)
+        this.startX=x
+        this.posY=y
+        this.blockSize=96+'px'//исходный размер блока 48 на 48(при изменение все меняется )
+        this.spritePos=0//начальное значение
+        this.spriteMaxPos=3
+        this.timer=0
+        this.sourcePah=src
+        this.state=this.IDLE
+        this.animateWasChange=false
+        this.createImg()//вызывваем создание
+        this.changeAnimate(this.WALK)
+        enemisArray.push(this)
+        this.lifeCycle()//вызываем после создания изображения
+        this.lives=30
+    }
+    //метод для изображения и блока
+    createImg(){
+     this.block=window.document.createElement('div')
+     this.block.style.position='absolute'
+     this.block.style.left=this.posX*32+'px'
+     this.block.style.bottom=this.posY*32+'px'
+     this.block.style.width=this.blockSize//ширине присваивается 96px
+     this.block.style.height=this.blockSize//высоте присваисвается 96зч
+     this.block.style.overflow='hidden'//скрываем другие изображения
+     this.blockSize = Number.parseInt(this.blockSize);
+
+
+     this.img=window.document.createElement('img')//обращение к функции для создания изображения
+     this.img.src=this.sourcePah+'Idle.png'//Путь к исходнику , при условие что 'sourcePah = папкам'
+     this.img.style.position='absolute'
+     this.img.style.left=0
+     this.img.style.bottom=0
+     this.img.style.width=this.blockSize*4+'px'
+     this.img.style.height=this.blockSize
+
+     canvas.appendChild(this.block)//на канвас выводим блок 
+     this.block.appendChild(this.img)//на див выводим блок 
+    }
+    //метод который берет изображение и меняет 
+    animate(){
+        if(this.spritePos>this.spriteMaxPos){//если позиция спрайта больше максимадльной 
+            this.spritePos=0 //то обнуляется
+            if(this.state===this.ATTACK){
+                lives-=0.5
+                updateHearts()
+            }
+            if(this.state===this.HURT){
+                this.changeAnimate(this.ATTACK)
+                if(this.dir>0){
+                    this.spritePos=1
+                }
+            }
+            if(this.state===this.DEATH){
+                clearInterval(this.timer)
+               isRightSideBlocked=false
+               isLeftSideBlocked=false
+               if(this.dir>0){
+                this.spritePos=5
+               }
+               if(this.message){
+                 new Cutscence([this.message])
+               if(this.isLast){
+                new Lever()
+               }
+            }
+        }}
+        this.img.style.left = `${-(this.spritePos) * (this.blockSize)}px`
+    }
+   
+    //жизненный цикл для класса 
+    lifeCycle(){
+        this.timer=setInterval(()=>{//создается собственный таймер класса
+            if(this.animateWasChange){
+                this.animateWasChange=false
+                switch(this.state){
+                    case this.ATTACK:{
+                        this.img.style.width = this.blockSize * 6+'px';
+                        this.setAttack()
+                        break
+                    }
+                    case this.DEATH:{
+                        this.img.style.width = this.blockSize * 6+'px';
+                        this.setDeath()
+                        break
+                    }
+                    case this.HURT:{
+                        this.img.style.width = this.blockSize * 2+'px';
+                        this.setHurt()
+                        break
+                    }
+                    case this.IDLE:{
+                        this.img.style.width = this.blockSize * 4+'px';
+                        this.setIdle()
+                        break
+                    }
+                    case this.WALK:{
+                        this.setWalk()
+                        this.img.style.width = this.blockSize * 6+'px';
+                        break
+                    }
+                    default:break
+                }
+            }
+            this.spritePos++//увеличиваем на 1 
+            this.checkCollide()//проверка столкновения
+            if(!this.stop){
+                this.move()
+            }else{
+                if(this.state!=this.DEATH){
+                if(this.state!=this.HURT){
+                    this.changeAnimate(this.ATTACK)
+                }
+            }
+        }
+            this.animate()//и вызываем после увеличения
+        },150)
+    }
+   //изменение анимации на
+    setAttack(){
+        this.img.src=this.sourcePah+'Attack.png'
+        this.spriteMaxPos=5 //5файлов анимации
+    }
+    setDeath(){
+        this.img.src=this.sourcePah+'Death.png'
+        this.spriteMaxPos=5 
+    }
+    setHurt(){
+        this.img.src=this.sourcePah+'Hurt.png'
+        this.spriteMaxPos=1 
+    }
+    setIdle(){
+        this.img.src=this.sourcePah+'Idle.png'
+        this.spriteMaxPos=3 //5файлов анимации
+    }
+    setWalk(){
+        this.img.src=this.sourcePah+'Walk.png'
+        this.spriteMaxPos=1 //5файлов анимации
+    }
+    changeAnimate(stateStr){
+        this.state=stateStr
+        this.animateWasChange=true
+    }
+    move(){
+        if(this.posX>this.startX+6){
+            this.dir*=-1
+            this.img.style.transform='scale(-1,1)'
+        }else if(this.posX<=this.startX){
+            this.dir=Math.abs(this.dir)
+            this.img.style.transform='scale(1,1)'
+
+        }
+        this.posX+=this.dir
+        this.block.style.left=this.posX*32+'px'
+        
+    }
+    checkHurt(){
+        if(wasHeroHit){
+                wasHeroHit=false
+                if(this.lives<=10){
+                    wasHeroHit=false
+                    this.changeAnimate(this.DEATH)
+                }else{
+                    this.changeAnimate(this.HURT)//вызывает анимацию урона если бьют 
+                    this.showHurt()
+                    this.lives-=10
+                }
+            }
+    }
+    checkCollide(){
+        if(heroY==this.posY){
+            if(heroX==this.posX){
+                //attack leftside
+                this.checkHurt()
+                isRightSideBlocked=true
+                this.stop=true
+            }else if(heroX==(this.posX)+3){
+                //attack
+                this.checkHurt()
+                isLeftSideBlocked=true
+                this.stop=true
+            }else{
+                isRightSideBlocked=false
+                isLeftSideBlocked=false
+                this.stop=false
+                this.changeAnimate(this.WALK)
+            }
+        }else{
+        isRightSideBlocked=false
+        isLeftSideBlocked=false
+        this.stop=false
+        this.changeAnimate(this.WALK)
+
+    }
+}
+    showHurt(){//вывод урона
+        let pos=0
+    let text=window.document.createElement('p')
+    text.innerText='Ай бля, меерис'
+    text.style.position='absolute'
+    text.style.left=(this.dir<0)? Number.parseInt(this.block.style.left)+50+'px':Number.parseInt(this.block.style.left)+10+'px'
+    text.style.bottom=Number.parseInt(this.block.style.bottom)+70+'px'
+    text.style.color='white'
+    let hurtTimer=setInterval(()=>{
+       text.style.bottom= Number.parseInt(text.style.bottom) +16+'px'
+       if(pos>2){
+        clearInterval(hurtTimer)
+        text.style.display='none'
+       }
+       pos++
+    },100)
+    canvas.appendChild(text)
+}
+    moveRight(){
+        this.startX+=1
+        this.posX+=1
+        if(this.stop||this.state===this.DEATH){
+            this.block.style.left=Number.parseInt(this.block.style.left)+32+'px'
+        }
+    }
+    moveLeft(){
+        this.startX-=1
+        this.posX-=1
+        if(this.stop||this.state===this.DEATH){
+            this.block.style.left=Number.parseInt(this.block.style.left)-32+'px'
+        }
+    }
+    getRandomOffSet(max){
+        let rand=Math.floor(Math.random()*max)
+        return rand
+    }
+}
+class Enemy1 extends Enemy{
+    constructor(x,y,mess){
+        super(x,y,'assets/Enemies/1/', mess)
+    }
+}
+class Enemy2 extends Enemy{
+    constructor(x,y,mess,isLast){
+        super(x,y,'assets/Enemies/2/',mess,isLast)
+    }
+    setAttack(){
+        this.img.src=this.sourcePah+'Attack.png'
+        this.spriteMaxPos=3 //5файлов анимации
+    }
+    setDeath(){
+        this.img.src=this.sourcePah+'Death.png'
+        this.spriteMaxPos=5 
+    }
+    setWalk(){
+        this.img.src=this.sourcePah+'2.png'
+        this.spriteMaxPos=1 //5файлов анимации
+    }
+}
+class Enemy5 extends Enemy{
+    constructor(x,y,mess){
+        super(x,y,'assets/Enemies/5/',mess)
+    }
+    setAttack(){
+        this.img.src=this.sourcePah+'Attack.png'
+        this.spriteMaxPos=3 //5файлов анимации
+    }
+    setDeath(){
+        this.img.src=this.sourcePah+'Death.png'
+        this.spriteMaxPos=5
+    }
+    setWalk(){
+        this.img.src=this.sourcePah+'Walk.png'
+        this.spriteMaxPos=3
+        
+    }
+}
+class Enemy6 extends Enemy{
+    bullet
+    isShoot
+    bulletX
+    constructor(x,y,mess){
+        super(x,y,'assets/Enemies/6/',mess)
+        this.bullet=window.document.createElement('img')
+        this.bullet.src=this.sourcePath+'Ball1.png'
+        this.bullet.style.position='absolute'
+        this.bullet.style.left=this.block.style.left
+        this.bullet.style.bottom=Number.parseInt(this.block.style.bottom)+32+'px'
+        this.bullet.style.transform='scale(2,2)'
+        this.bullet.style.display='none'
+        canvas.appendChild(this.bullet)
+    }
+    setAttack(){
+        this.img.src=this.sourcePah+'Attack.png'
+        this.spriteMaxPos=3 //5файлов анимации
+    }
+    setDeath(){
+        this.img.src=this.sourcePah+'Death.png'
+        this.spriteMaxPos=25
+        
+    }
+    setWalk(){
+        this.img.src=this.sourcePah+'Walk.png'
+        this.spriteMaxPos=3 //5файлов анимации
+    }
+    
+    checkCollide(){
+        this.stop=true
+        if(heroX>this.posX){
+            this.dir=1
+            this.img.style.transform='scale(1,1)'
+        }else{
+            this.dir=-1
+            this.img.style.transform='scale(-1,1)'
+        }
+        if(heroY==this.posY){
+            if(heroX==this.posX){
+                //attack leftside
+                this.checkHurt()
+                isRightSideBlocked=true
+                // this.stop=true
+            }else if(heroX==(this.posX)+3){
+                //attack
+                this.checkHurt()
+                isLeftSideBlocked=true
+                // this.stop=true
+            }else{
+                isRightSideBlocked=false
+                isLeftSideBlocked=false
+                // this.stop=false
+                this.changeAnimate(this.WALK)
+            }
+        }else{
+        isRightSideBlocked=false
+        isLeftSideBlocked=false
+        this.stop=false
+        this.changeAnimate(this.WALK)
+
+    }
+}
+animate(){
+        if(this.spritePos>this.spriteMaxPos){//если позиция спрайта больше максимадльной 
+            this.spritePos=0 //то обнуляется
+            if(this.state===this.ATTACK){
+             if(!this.isShoot)   this.shoot()
+                // lives--
+                // updateHearts()
+            }
+            if(this.state===this.HURT){
+                this.changeAnimate(this.ATTACK)
+                if(this.dir>0){
+                    this.spritePos=1
+                }
+            }
+            if(this.state===this.DEATH){
+                clearInterval(this.timer)
+               isRightSideBlocked=false
+               isLeftSideBlocked=false
+               if(this.dir>0){
+                this.spritePos=5
+               }
+               if(this.message) new Cutscence([this.message])
+            }
+        }
+        if(this.isShoot&&this.state===this.ATTACK){
+            this.bulletFunc()
+        }else{
+            this.bullet.style.display='none'
+        }
+        this.img.style.left = `${-(this.spritePos) * (this.blockSize)}px`
+    }
+    shoot(){
+        this.isShoot=true
+        this.bullet.display='block'
+        if(this.dir>0){
+            this.bulletX=this.posX+2
+        }else{
+            this.bulletX=this.posX
+        }
+    }
+    bulletFunc(){
+        (this.dir>0)?this.bulletX+=1:this.bulletX-=1
+        this.bullet.style.left=this.bulletX*32+'px'
+        if(this.bulletX===heroX&&this.posY===heroY){
+            this.isShoot=false
+            this.bullet.style.display='none'
+            lives-=0.5
+            updateHearts()
+        }
+        if(this.dir>0){
+            if(this.bulletX>(this.posX+6)){
+            this.isShoot=false
+            this.bullet.style.display='none'
+            }
+        }else{
+            if(this.bulletX<(this.posX-5)){
+            this.isShoot=false
+            this.bullet.style.display='none'
+            }
+        }
+        // this.isShoot=false
+        // this.bullet.style.display='none'
+    }
+}
+class Heart {
+    img
+    x
+    constructor(x,src){
+        this.x=x//сдвигаем сердечки
+        this.img=window.document.createElement('img')
+        this.img.src=src
+        this.img.style.position='absolute'
+        this.img.style.left=this.x*56+'px'
+        this.img.style.bottom=((window.screen.height/32)-2)*32
+        this.img.style.width=55+'px'
+        this.img.style.height=55+'px'
+        this.img.style.borderRadius='50%'
+        this.img.style.backgroundColor='white'
+        canvas.appendChild(this.img)
+    }
+}
+
+//свойство отвечающее за наследстенность
+class HeartEmpty extends Heart {
+constructor(x){
+    super(x, 'assets/Hearts/heart_empty.png')
+}
+}
+
+class HeartRed extends Heart{
+constructor(x){
+    super(x,'assets/Hearts/heart_red.png')
+}
+}
+
+const addHearts=()=>{
+    for(let i=0;i<maxLives;i++){
+        let heartEmpty=new HeartEmpty(i)
+        let heartRed=new HeartRed(i)
+        heartsArray.push(heartRed)
+    }
+}
+
+//
+const updateHearts=()=>{
+    if(lives<=0){
+finalTimerText.innerText='Гей Over'
+imgBlock.style.display='none'
+    }
+    for(let i=0;i<lives;i++){
+        heartsArray[i].img.style.display='block'
+    }
+    for(let i=lives;i<maxLives;i++){
+        heartsArray[i].img.style.display='none'
+    }
+}
+
+//моздании функции для фона
+const createBackImg=(i)=>{
+    let img=window.document.createElement('img')
+    img.src='assets/2 Background/Day/Background.png'
+    img.style.position='absolute'
+    img.style.left=(i*window.screen.width)-32+'px'
+    img.style.bottom=32+'px'
+    img.style.width=window.screen.width+'px'
+    backgroundCanvas.appendChild(img)
+    objectsArray.push(img)
+}
+
+const addBackgroundImages=(i)=>{
+    for (let i=0; i<11;i++){
+        createBackImg(i)
+    }
+}
+
+const createImgEl=(src,x,y)=>{
+    let img=window.document.createElement('img')
+    img.src=src
+    img.style.position='absolute'
+    img.style.left=x*32+'px'
+    img.style.bottom=y*32+'px'
+    img.style.transform='scale(2,2) translate(-25%, -25%)'
+    backgroundCanvas.appendChild(img)
+    objectsArray.push(img)
+}
+
+const addDecotationElements=(f1,f2,f3)=>{
+    let basePath='assets/3 Objects/'
+    //tree
+    createImgEl(basePath+'/Other/Tree4.png',6,f1)
+    createImgEl(basePath+'/Other/Tree2.png',35,f1)
+    createImgEl(basePath+'/Other/Tree3.png',78,f1)
+    createImgEl(basePath+'/Other/Tree4.png',118,f1)
+    createImgEl(basePath+'/Other/Tree1.png',65,f2)
+    //stone
+    createImgEl(basePath+'/Stones/6.png',10,f1)
+    createImgEl(basePath+'/Stones/4.png',111,f1)
+    createImgEl(basePath+'/Stones/4.png',38,f1)
+    createImgEl(basePath+'/Stones/6.png',102,f3)
+    //raamp
+    createImgEl(basePath+'/Other/Ramp1.png',22,f2)
+    createImgEl(basePath+'/Other/Ramp2.png',26,f2)
+    createImgEl(basePath+'/Other/Ramp1.png',95,f2)
+    createImgEl(basePath+'/Other/Ramp2.png',99,f2)
+    createImgEl(basePath+'/Other/Ramp1.png',45,f2)
+    createImgEl(basePath+'/Other/Ramp2.png',49,f2)
+    //bushes//
+    createImgEl(basePath+'/Bushes/17.png',84,f1)
+    createImgEl(basePath+'/Bushes/17.png',19,f2)
+    createImgEl(basePath+'/Bushes/17.png',50,f2)
+    createImgEl(basePath+'/Bushes/17.png',69,f2)
+    createImgEl(basePath+'/Bushes/17.png',100,f2)
+    createImgEl(basePath+'/Bushes/17.png',13,f3)
+    //fontain
+    createImgEl(basePath+'Fountain/2.png',110,f1)
+    //box
+    createImgEl(basePath+'/Other/Box.png',84,f1)
+    createImgEl(basePath+'/Other/Box.png',48,f2)
+    createImgEl(basePath+'/Other/Box.png',14,f3)
+    createImgEl(basePath+'/Other/Box.png',104,f3)
+}
+
+const addEnemies=()=>{
+let enemy8=new Enemy2(5,1)
+let enemy1=new Enemy1(9,9,' 1')
+let enemy2=new Enemy6(19,5)
+let enemy3=new Enemy5(44,5,' 2')
+let enemy4=new Enemy2(65,5)
+let enemy5=new Enemy1(79,1,' 3')
+let enemy6=new Enemy6(93,5)
+let enemy7=new Enemy2(100,9, '4 \n\n Скореее ищи трусики тяночки',true)
+}
+
+const buildLevel=()=>{
+    let floor1=0
+    let floor2=4
+    let floor3=8
+
+addDecotationElements(floor1+1,floor2+1,floor3+1)
+
+createTilesPlatform(0, 14, floor1);
+createTilesPlatform(33, 41, floor1);
+createTilesPlatform(76, 91, floor1);
+createTilesPlatform(106, 140, floor1);
+createTilesPlatform(141, 500, floor1);
+
+createTilesPlatform(15, 32, floor2);
+createTilesPlatform(42, 53, floor2);
+createTilesPlatform(64, 75, floor2);
+createTilesPlatform(92, 105, floor2);
+createTilesPlatform(115, 118, floor2);
+createTilesPlatform(165, 190, floor2);
+
+createTilesPlatform(8, 20, floor3);
+createTilesPlatform(54, 63, floor3);
+createTilesPlatform(75, 87, floor3);
+createTilesPlatform(99, 111, floor3);
+createTilesPlatform(120, 140, floor3);
+createTilesPlatform(145, 160, floor3);
+
+
+createTilesBlackBlock(15, 32, floor2);
+createTilesBlackBlock(42, 53, floor2);
+createTilesBlackBlock(64, 75, floor2);
+createTilesBlackBlock(92, 105, floor2);
+createTilesBlackBlock(115, 118, floor2);
+createTilesBlackBlock(165, 190, floor2);
+
+createTilesBlackBlock(54, 63, floor3);
+
+addEnemies()
+}
+
+addStartScreen=()=>{
+    let div=window.document.createElement('div')
+    div.style.position='absolute'
+    div.style.left=0
+    div.style.bottom=0
+    div.style.width='100%'
+    div.style.height='100vh'
+    div.style.backgroundColor='red'
+    div.style.display='grid'
+    div.style.alignItems='center'
+    div.style.justifyContent='center'
+    canvas.appendChild(div)
+    let btn=window.document.createElement('button')
+    btn.innerText='play'
+    btn.style.fontFamily="'Press Start 2P',cursive"
+    btn.style.fontSize='30pt'
+    btn.style.backgroundColor='white'
+    btn.style.color='red'
+    btn.style.padding='20pt 30pt'
+    btn.style.border='none'
+    btn.addEventListener('click',()=>{
+        div.style.display='none'
+        fsBtn.src='cancel.png' //кнопка отмены
+        canvas.requestFullscreen()
+        let cutscene=new Cutscence(['Я - Меерис! Истинный герой .\n\n Меня родили лишь для одного!... для поиска тяночки в этом ублюдском мире.',
+				'Мне необходимо найти мою любовь и поговорить с ней. Но для этого мне нужны её трусики. \n\n В моём Батайске много недоброжелателей у которых есть Пароль .\n\n Когда пароль будет у меня , то я узнаю нахождение трусиков',
+				'Пароль состоит из 4-х цифр.',
+])  
+    })
+    div.appendChild(btn)
+
+}
+
+//функция запускающая с самого начала
+const start=()=>{
+    addBackgroundImages()
+    lifeCycle()
+    buildLevel()
+    addHearts()
+    updateHearts()
+    addStartScreen()
+}
+start()
+
+
+</script>
+
+
+</html>
